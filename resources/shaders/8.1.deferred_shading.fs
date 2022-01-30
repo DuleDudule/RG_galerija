@@ -159,7 +159,7 @@ void main()
     const float gamma = 2.2;
     // retrieve data from gbuffer
     vec3 FragPos = texture(gPosition, TexCoords).rgb;
-    vec3 Normal = normalize(texture(gNormal, TexCoords).rgb);
+    vec3 Normal = texture(gNormal, TexCoords).rgb;
     vec3 Diffuse = texture(gAlbedoSpec, TexCoords).rgb;
     float Specular = texture(gAlbedoSpec, TexCoords).a;
     vec3 viewDir = normalize(viewPos - FragPos);

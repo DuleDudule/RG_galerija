@@ -176,7 +176,7 @@ int main() {
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
-
+    glEnable(GL_CULL_FACE);
 
     // build and compile shaders
     // -------------------------
@@ -190,7 +190,7 @@ int main() {
     // -----------
     Model ourModel("resources/objects/backpack/backpack.obj");
     ourModel.SetShaderTextureNamePrefix("");
-    Model tunel("resources/objects/drugi/dusan1.obj");
+    Model tunel("resources/objects/drugi/29_01_dusan_projekat.obj");
     tunel.SetShaderTextureNamePrefix("");
 
     std::vector<glm::vec3> objectPositions;
@@ -278,7 +278,8 @@ int main() {
         float bColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.0
         lightColors.push_back(glm::vec3(rColor, gColor, bColor));
     }
-    lightColors[0] = glm::vec3(20,0,0);
+    lightColors[0] = glm::vec3(10,10,10);
+//    lightColors[0] = glm::vec3(20,0,0);
     // shader configuration
     // --------------------
     shaderLightingPass.use();
@@ -306,12 +307,12 @@ int main() {
 
         // render
         // ------
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // 1. geometry pass: render scene's geometry/color data into gbuffer
         // -----------------------------------------------------------------
         glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = programState->camera.GetViewMatrix();
@@ -333,7 +334,9 @@ int main() {
         shaderGeometryPass.setMat4("model", model);
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LEQUAL);
+        glDisable(GL_CULL_FACE);
         tunel.Draw(shaderGeometryPass);
+        glEnable(GL_CULL_FACE);
         glDepthFunc(GL_LESS);
 
 
@@ -440,7 +443,7 @@ int main() {
                 ImGui::DragFloat("pointLight.linear", &programState->pointLight.linear, 0.05, 0.0, 1.0);
                 ImGui::DragFloat("pointLight.quadratic", &programState->pointLight.quadratic, 0.05, 0.0, 1.0);
                 ImGui::GetWindowDrawList()->AddImage(
-                        (void*)gPosition,
+                        (void*)gAlbedoSpec,
                         ImVec2(ImGui::GetCursorScreenPos()),
                         ImVec2(ImGui::GetCursorScreenPos().x + programState->SCR_WIDTH / 2,
                                ImGui::GetCursorScreenPos().y + programState->SCR_HEIGHT / 2), ImVec2(0, 1),

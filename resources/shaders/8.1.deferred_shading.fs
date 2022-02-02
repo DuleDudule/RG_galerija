@@ -1,12 +1,21 @@
 #version 330 core
-out vec4 FragColor;
-
+layout (location = 0) out vec4 FragColor;
+layout (location = 1) out vec4 BrightColor;
+layout (location = 2) out vec4 Depth;
 in vec2 TexCoords;
 
 uniform sampler2D gPosition;
 uniform sampler2D gNormal;
 uniform sampler2D gAlbedoSpec;
+uniform sampler2D gMask;
+float near = 0.1;
+float far  = 100.0;
 
+float LinearizeDepth(float depth)
+{
+    float z = depth * 2.0 - 1.0; // back to NDC
+    return (2.0 * near * far) / (far + near - z * (far - near));
+}
 struct pointLight {
     vec3 position;
     vec3 color;
@@ -47,11 +56,14 @@ struct SpotLight{
    vec3 diffuse;
    vec3 specular;
 };
-const int NR_LIGHTS = 1;
+const int NR_LIGHTS_SIPKE = 96;
+const int NR_LIGHTS_RAMOVI = 6;
+const int NR_SPOT_LIGHTS = 26;
 
-uniform pointLight lights[NR_LIGHTS];
+uniform pointLight lightsSipke[NR_LIGHTS_SIPKE];
+uniform pointLight lightsRamovi[NR_LIGHTS_RAMOVI];
 uniform Material material;
-uniform SpotLight spotLight;
+uniform SpotLight spotLight[NR_SPOT_LIGHTS];
 uniform DirLight dirLight;
 uniform bool hdr;
 uniform float exposure;
@@ -162,51 +174,41 @@ void main()
     vec3 Normal = texture(gNormal, TexCoords).rgb;
     vec3 Diffuse = texture(gAlbedoSpec, TexCoords).rgb;
     float Specular = texture(gAlbedoSpec, TexCoords).a;
-    vec3 viewDir = normalize(viewPos - FragPos);
+//     vec3 viewDir = normalize(viewPos - FragPos);
+    vec3 viewDir = normalize(FragPos - viewPos);
     vec3 result = vec3(0,0,0);
     result = CalcDirLight(dirLight, Normal, viewDir,Diffuse,Specular);
-    for(int i = 0; i < NR_LIGHTS; ++i){
-        result +=CalcPointLight(lights[i], Normal, FragPos, viewDir,Diffuse,Specular);
+
+    vec3 maska = texture(gMask,TexCoords).rgb;
+    if(maska == vec3(1.0,1.0,1.0)){
+        for(int i = 0; i < NR_LIGHTS_SIPKE; ++i){
+                result +=CalcPointLight(lightsSipke[i], Normal, FragPos, viewDir,Diffuse,Specular);
+            }
+                float brightness = dot(result, vec3(0.2126, 0.7152, 0.0722));
+                if(brightness > 1.0)
+                    BrightColor = vec4(result, 1.0);
+                else
+                    BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
+
+
+                FragColor = vec4(result, 1.0);
+                float depth = LinearizeDepth(gl_FragCoord.z) / far; // divide by far for demonstration
+                Depth = vec4(vec3(depth), 1.0);
     }
-    result += CalcSpotLight(spotLight,Normal,viewDir,FragPos,Diffuse,Specular);
+    else{
+        for(int i = 0; i < NR_LIGHTS_RAMOVI; ++i){
+            result +=CalcPointLight(lightsRamovi[i], Normal, FragPos, viewDir,Diffuse,Specular);
+        }
+        for(int i= 0; i < NR_SPOT_LIGHTS; i++){
+            result += CalcSpotLight(spotLight[i],Normal,viewDir,FragPos,Diffuse,Specular);
+        }
 
 
-    //tonemapping?
-    if(hdr)
-    {
-        // reinhard
-        // vec3 result = hdrColor / (hdrColor + vec3(1.0));
-        // exposure
-        result = vec3(1.0) - exp(-result * exposure);
-        // also gamma correct while we're at it
-        result = pow(result, vec3(1.0 / gamma));
-        FragColor = vec4(result, 1.0);
+
+            FragColor = vec4(result, 1.0);
+            float depth = LinearizeDepth(gl_FragCoord.z) / far; // divide by far for demonstration
+            Depth = vec4(vec3(depth), 1.0);
+
     }
-    else
-    {
-        result = pow(result, vec3(1.0 / gamma));
-        FragColor = vec4(result, 1.0);
-    }
-
-
-//     // then calculate lighting as usual
-//     vec3 lighting  = Diffuse * 0.1; // hard-coded ambient component
-//     vec3 viewDir  = normalize(viewPos - FragPos);
-//     for(int i = 0; i < NR_LIGHTS; ++i)
-//     {
-//         // diffuse
-//         vec3 lightDir = normalize(lights[i].position - FragPos);
-//         vec3 diffuse = max(dot(Normal, lightDir), 0.0) * Diffuse * lights[i].color;
-//         // specular
-//         vec3 halfwayDir = normalize(lightDir + viewDir);
-//         float spec = pow(max(dot(Normal, halfwayDir), 0.0), 16.0);
-//         vec3 specular = lights[i].color * spec * Specular;
-//         // attenuation
-//         float distance = length(lights[i].position - FragPos);
-//         float attenuation = 1.0 / (1.0 + lights[i].linear * distance + lights[i].quadratic * distance * distance);
-//         diffuse *= attenuation;
-//         specular *= attenuation;
-//         lighting += diffuse + specular;
-//     }
 
 }

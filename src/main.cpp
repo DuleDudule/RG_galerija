@@ -27,7 +27,7 @@ void processInput(GLFWwindow *window);
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
 void renderQuad();
-void renderCube();
+
 
 unsigned int loadTexture(char const * path, bool gammaCorrection);
 
@@ -40,6 +40,7 @@ const unsigned int SCR_HEIGHT = 600;
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
+bool freeCamKeyPressed = false;
 
 // timing
 float deltaTime = 0.0f;
@@ -75,24 +76,30 @@ struct ProgramState {
     Camera camera;
     bool hdr = true;
     bool bloom = true;
+    bool blinn = true;
 
 
-    float exposure = 1.0f;
+    float exposure = 0.422f;
     const unsigned int SCR_WIDTH = 800;
     const unsigned int SCR_HEIGHT = 600;
     bool CameraMouseMovementUpdateEnabled = true;
-    glm::vec3 backpackPosition = glm::vec3(0.0f);
-    glm::vec3 planePos = glm::vec3(0.0f);
     glm::vec3 frameLights = glm::vec3(4.0f);
     glm::vec3 dirLightAmbient = glm::vec3(0.05f,0.05f,0.05f);
     glm::vec3 dirLightDiffuse = glm::vec3(0.4f,0.4f,0.4f);
     glm::vec3 dirLightSpecular = glm::vec3(0.5f,0.5f,0.5f);
     glm::vec3 spotDir = glm::vec3(0.0f,1.0f,0.2f);
-    float backpackScale = 1.0f;
+    float planeScaleX = 10.603f;
+    float planeScaleY = 1.0f;
+    float planeScaleZ = 1.835f;
+    float planePosX = 8.987f;
+    float planePosY = -3.228f;
+    float planePosZ = -10.663f;
+    glm::vec3 planePos = glm::vec3(5,planeScaleY,planePosZ);
+
     PointLight pointLight;
     SpotLight spotLight;
     ProgramState()
-                :camera(glm::vec3(-13.129006f,0.482098f,-5.613296f)){}
+                :camera(glm::vec3(-26.5f,3.5f,-11.0f)){}
 //            : camera(glm::vec3(0.0f, 0.0f, 3.0f)) {}
 
     void SaveToFile(std::string filename);
@@ -146,7 +153,6 @@ void ProgramState::LoadFromFile(std::string filename) {
 
 ProgramState *programState;
 
-void DrawImGui(ProgramState *programState);
 
 int main() {
     // glfw: initialize and configure
@@ -212,44 +218,18 @@ int main() {
     Shader shaderGeometryPass("resources/shaders/8.1.g_buffer.vs", "resources/shaders/8.1.g_buffer.fs");
     Shader shaderGeometryPass2("resources/shaders/gBuffer2.vs", "resources/shaders/gBuffer2.fs");
     Shader shaderLightingPass("resources/shaders/8.1.deferred_shading.vs", "resources/shaders/8.1.deferred_shading.fs");
-    Shader shaderLightingPass2("resources/shaders/deferred2.vs", "resources/shaders/deferred2.fs");
-    Shader shaderLightBox("resources/shaders/8.1.deferred_light_box.vs", "resources/shaders/8.1.deferred_light_box.fs");
-    Shader ourShader("resources/shaders/2.model_lighting.vs", "resources/shaders/2.model_lighting.fs");
     Shader shaderBloomFinal("resources/shaders/7.bloom_final.vs", "resources/shaders/7.bloom_final.fs");
     Shader shaderBlur("resources/shaders/blur.vs", "resources/shaders/blur.fs");
     Shader transparentShader("resources/shaders/transparent.vs", "resources/shaders/transparent.fs");
-    Shader transparent2Shader("resources/shaders/transparent2.vs", "resources/shaders/transparent2.fs");
+
     // load models
     // -----------
-//    Model ourModel("resources/objects/znak/znak.obj");
-//    ourModel.SetShaderTextureNamePrefix("");
-//    Model tunel("resources/objects/final/sipke.obj");
-//    tunel.SetShaderTextureNamePrefix("");
-//    Model tunel2("resources/objects/final/2.obj");
-//    tunel.SetShaderTextureNamePrefix("");
     Model tunel2("resources/objects/final/sipke2.obj");
     tunel2.SetShaderTextureNamePrefix("");
-//    Model ramovi("resources/objects/final/ramovi.obj");
-//    ramovi.SetShaderTextureNamePrefix("");
     Model ramovi2("resources/objects/final/ramovi2.obj");
     ramovi2.SetShaderTextureNamePrefix("");
 
-    unsigned int transparentTexture = loadTexture("resources/textures/plocice2.png",false);
-
-
-
-    std::vector<glm::vec3> objectPositions;
-    objectPositions.push_back(glm::vec3(-3.0,  -0.5, -3.0));
-    objectPositions.push_back(glm::vec3( 0.0,  -0.5, -3.0));
-    objectPositions.push_back(glm::vec3( 3.0,  -0.5, -3.0));
-    objectPositions.push_back(glm::vec3(-3.0,  -0.5,  0.0));
-    objectPositions.push_back(glm::vec3( 0.0,  -0.5,  0.0));
-    objectPositions.push_back(glm::vec3( 3.0,  -0.5,  0.0));
-    objectPositions.push_back(glm::vec3(-3.0,  -0.5,  3.0));
-    objectPositions.push_back(glm::vec3( 0.0,  -0.5,  3.0));
-    objectPositions.push_back(glm::vec3( 3.0,  -0.5,  3.0));
-
-
+    unsigned int transparentTexture = loadTexture("resources/textures/plocice3.png",false);
 
 
     PointLight& pointLight = programState->pointLight;
@@ -334,11 +314,6 @@ int main() {
                                                  glm::vec3(-1.74803e-06,-0.299041,0.95424),
                                                  glm::vec3(0.00166904,-0.292372,-0.956303),//
     };
-
-
-
-
-
 
     float transparentVertices[] = {
             // positions         // texture Coords (swapped y coordinates because texture is flipped upside down)
@@ -441,10 +416,6 @@ int main() {
     unsigned int attachments2[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
     glDrawBuffers(3, attachments2);
 
-
-//    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-//    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT);
-//    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
     unsigned int rboDepth2;
     glGenRenderbuffers(1, &rboDepth2);
     glBindRenderbuffer(GL_RENDERBUFFER, rboDepth2);
@@ -482,11 +453,6 @@ int main() {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT  , GL_TEXTURE_2D, pingpongDepthbuffers[i], 0);
 
-//        glGenRenderbuffers(1, &rboDepth3[i]);
-//        glBindRenderbuffer(GL_RENDERBUFFER, rboDepth3[i]);
-//        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT);
-//        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth3[i]);
-        // also check if framebuffers are complete (no need for depth buffer)
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
             std::cout << "Framebuffer not complete!" << std::endl;
     }
@@ -675,18 +641,12 @@ int main() {
         processInput(window);
 
         //postavljanje boje svetla
-//        float redValue = (sin(currentFrame + (0.1*3.14f)/3.0f)/2.0f) +0.5f;
-//        float greenValue = ((sin(currentFrame + (2.0f*3.14f)/3.0f)) / 2.0f) +0.5f;
-//        float blueValue = ((sin(currentFrame + (4.0f*3.14f)/3.0f)) / 2.0f) +0.5f;
         float redValue = (sin(currentFrame + (2.0f*3.14f)/3.0f)/2.0f) +0.5f;
         float greenValue = ((sin(currentFrame + (4.0f*3.14f))) / 2.0f) +0.5f;
-
         float blueValue = ((sin(currentFrame + (4.0f*3.14f)/3.0f)) / 2.0f) +0.5f;
         for(int i = 0 ; i< lightColors.size(); i++){
             lightColors[i] =(glm::vec3(redValue,greenValue,blueValue));
         }
-
-
 
         // render
         // ------
@@ -715,16 +675,12 @@ int main() {
         shaderGeometryPass2.setMat4("projection", projection);
         shaderGeometryPass2.setMat4("view", view);
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(programState->backpackPosition));
+        model = glm::translate(model, glm::vec3(glm::vec3(0.0f)));
         shaderGeometryPass.setMat4("model", model);
         ramovi2.Draw(shaderGeometryPass2);
-        glDepthFunc(GL_LESS);//IZMENJENO BILO LESS
-        //DEPTH BUFER ??
-//        glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
-//        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, hdrFBO); // write to default framebuffer
-//        glBlitFramebuffer(
-//                0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
-//        );
+        glDepthFunc(GL_LESS);
+
+
         glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -787,88 +743,10 @@ int main() {
         shaderLightingPass.setFloat("material.shininess", 32.0f);
         //directional light
 
-        shaderLightingPass.setBool("blinn",true);
-//
+        shaderLightingPass.setBool("blinn",programState->blinn);
+
         renderQuad();
-//
-//        glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
-//        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, hdrFBO); // write to default framebuffer
-//        glBlitFramebuffer(
-//                0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
-//        );
 
-//        //PLANE OBRISATI
-//        transparentShader.use();
-//        glBindVertexArray(transparentVAO);
-//        glEnable(GL_BLEND);
-
-//        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-//        glActiveTexture(GL_TEXTURE0);
-//        glBindTexture(GL_TEXTURE_2D, transparentTexture);
-//
-//        model = glm::mat4(1.0f);
-//        model = glm::translate(model, glm::vec3(1,1,1));
-//        model = glm::scale(model, glm::vec3(10,10,10));
-//        transparentShader.setMat4("projection", projection);
-//        transparentShader.setMat4("view", view);
-////        float angle = 90.0f;
-////        model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.0f,0.0f ));
-//        transparentShader.setMat4("model", model);
-//        //lighting
-//        for (unsigned int i = 0; i < lightPositions.size(); i++)
-//        {
-//            transparentShader.setVec3("lightsSipke[" + std::to_string(i) + "].position", lightPositions[i]);
-//            transparentShader.setVec3("lightsSipke[" + std::to_string(i) + "].color", lightColors[i]);
-//
-//            transparentShader.setVec3("lightsSipke[" + std::to_string(i) + "].ambient", pointLight.ambient);
-//            transparentShader.setVec3("lightsSipke[" + std::to_string(i) + "].diffuse", pointLight.diffuse);
-//            transparentShader.setVec3("lightsSipke[" + std::to_string(i) + "].specular", pointLight.specular);
-//            transparentShader.setFloat("lightsSipke[" + std::to_string(i) + "].constant", pointLight.constant);
-//            transparentShader.setFloat("lightsSipke[" + std::to_string(i) + "].linear", pointLight.linear);
-//            transparentShader.setFloat("lightsSipke[" + std::to_string(i) + "].quadratic", pointLight.quadratic);
-//        }
-//        for (unsigned int i = 0; i < lightPositions2.size(); i++)
-//        {
-//            transparentShader.setVec3("lightsRamovi[" + std::to_string(i) + "].position", lightPositions2[i]);
-//            transparentShader.setVec3("lightsRamovi[" + std::to_string(i) + "].color", programState->frameLights);
-//
-//            transparentShader.setVec3("lightsRamovi[" + std::to_string(i) + "].ambient", pointLight.ambient);
-//            transparentShader.setVec3("lightsRamovi[" + std::to_string(i) + "].diffuse", pointLight.diffuse);
-//            transparentShader.setVec3("lightsRamovi[" + std::to_string(i) + "].specular", pointLight.specular);
-//            transparentShader.setFloat("lightsRamovi[" + std::to_string(i) + "].constant", pointLight.constant);
-//            transparentShader.setFloat("lightsRamovi[" + std::to_string(i) + "].linear", pointLight.linear);
-//            transparentShader.setFloat("lightsRamovi[" + std::to_string(i) + "].quadratic", 0.1f);
-//        }
-//        transparentShader.setVec3("viewPos", programState->camera.Position);
-//        transparentShader.setFloat("material.shininess", 32.0f);
-//        //directional light
-//        transparentShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
-//        transparentShader.setVec3("dirLight.ambient", programState->dirLightAmbient);
-//        transparentShader.setVec3("dirLight.diffuse", programState->dirLightDiffuse);
-//        transparentShader.setVec3("dirLight.specular", programState->dirLightSpecular);
-//        //spotlight
-//        for (unsigned int i = 0; i < spotLightPositions.size(); i++){
-//            //spotlight
-//            transparentShader.setVec3("spotLight[" + std::to_string(i) + "].position", spotLightPositions[i]);
-//
-//            transparentShader.setVec3("spotLight[" + std::to_string(i) + "].direction", spotLightDirections[i]);
-////            transparentShader.setVec3("spotLight[" + std::to_string(i) + "].direction", programState->camera.Front);
-//            transparentShader.setVec3("spotLight[" + std::to_string(i) + "].ambient", programState->spotLight.ambient);
-//            transparentShader.setVec3("spotLight[" + std::to_string(i) + "].diffuse", programState->spotLight.diffuse);
-//            transparentShader.setVec3("spotLight[" + std::to_string(i) + "].specular", programState->spotLight.specular);
-//            transparentShader.setFloat("spotLight[" + std::to_string(i) + "].constant", programState->spotLight.constant);
-//            transparentShader.setFloat("spotLight[" + std::to_string(i) + "].linear", programState->spotLight.linear);
-//            transparentShader.setFloat("spotLight[" + std::to_string(i) + "].quadratic", programState->spotLight.quadratic);
-//            transparentShader.setFloat("spotLight[" + std::to_string(i) + "].cutOff", programState->spotLight.cutOff);
-//            transparentShader.setFloat("spotLight[" + std::to_string(i) + "].outerCutOff", programState->spotLight.outerCutOff);
-//
-//        }
-
-//
-//        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-//
-//        //
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -881,23 +759,6 @@ int main() {
         glActiveTexture(GL_TEXTURE0);
 
         glDisable(GL_DEPTH_TEST);
-
-
-//        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
-////        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//        glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
-//        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pingpongFBO[horizontal]); // write to default framebuffer
-//        glBlitFramebuffer(
-//                0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
-//        );
-//
-//        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[!horizontal]);
-////        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//        glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
-//        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pingpongFBO[!horizontal]); // write to default framebuffer
-//        glBlitFramebuffer(
-//                0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
-//        );
 
         for (unsigned int i = 0; i < amount; i++)
         {
@@ -927,7 +788,7 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[!horizontal]);
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, gMask);
-//        glBindTexture(GL_TEXTURE_2D, colorBuffers[1]);
+
         shaderBloomFinal.setInt("bloom", programState->bloom);
         shaderBloomFinal.setFloat("exposure", programState->exposure);
         renderQuad();
@@ -948,130 +809,30 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, transparentTexture);
 //
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(12,-17.5,-11));
-        model = glm::scale(model, glm::vec3(5,5,5));
+        model = glm::translate(model, glm::vec3(programState->planePosX,programState->planePosY,programState->planePosZ));
+        model = glm::scale(model, glm::vec3(programState->planeScaleX,1,1));
+        model = glm::scale(model, glm::vec3(1,programState->planeScaleY,1));
+        model = glm::scale(model, glm::vec3(1,1,programState->planeScaleZ));
         transparentShader.setMat4("projection", projection);
         transparentShader.setMat4("view", view);
         float angle = 90.0f;
         model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.0f,0.0f ));
         transparentShader.setMat4("model", model);
-        //lighting
-//        for (unsigned int i = 0; i < lightPositions.size(); i++)
-//        {
-//            transparentShader.setVec3("lightsSipke[" + std::to_string(i) + "].position", lightPositions[i]);
-//            transparentShader.setVec3("lightsSipke[" + std::to_string(i) + "].color", lightColors[i]);
-//
-//            transparentShader.setVec3("lightsSipke[" + std::to_string(i) + "].ambient", pointLight.ambient);
-//            transparentShader.setVec3("lightsSipke[" + std::to_string(i) + "].diffuse", pointLight.diffuse);
-//            transparentShader.setVec3("lightsSipke[" + std::to_string(i) + "].specular", pointLight.specular);
-//            transparentShader.setFloat("lightsSipke[" + std::to_string(i) + "].constant", pointLight.constant);
-//            transparentShader.setFloat("lightsSipke[" + std::to_string(i) + "].linear", pointLight.linear);
-//            transparentShader.setFloat("lightsSipke[" + std::to_string(i) + "].quadratic", pointLight.quadratic);
-//        }
-//        for (unsigned int i = 0; i < lightPositions2.size(); i++)
-//        {
-//            transparentShader.setVec3("lightsRamovi[" + std::to_string(i) + "].position", lightPositions2[i]);
-//            transparentShader.setVec3("lightsRamovi[" + std::to_string(i) + "].color", programState->frameLights);
-//
-//            transparentShader.setVec3("lightsRamovi[" + std::to_string(i) + "].ambient", pointLight.ambient);
-//            transparentShader.setVec3("lightsRamovi[" + std::to_string(i) + "].diffuse", pointLight.diffuse);
-//            transparentShader.setVec3("lightsRamovi[" + std::to_string(i) + "].specular", pointLight.specular);
-//            transparentShader.setFloat("lightsRamovi[" + std::to_string(i) + "].constant", pointLight.constant);
-//            transparentShader.setFloat("lightsRamovi[" + std::to_string(i) + "].linear", pointLight.linear);
-//            transparentShader.setFloat("lightsRamovi[" + std::to_string(i) + "].quadratic", 0.1f);
-//        }
-//        transparentShader.setVec3("viewPos", programState->camera.Position);
-//        transparentShader.setFloat("material.shininess", 32.0f);
-//        //directional light
-//        transparentShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
-//        transparentShader.setVec3("dirLight.ambient", programState->dirLightAmbient);
-//        transparentShader.setVec3("dirLight.diffuse", programState->dirLightDiffuse);
-//        transparentShader.setVec3("dirLight.specular", programState->dirLightSpecular);
-//        //spotlight
-//        for (unsigned int i = 0; i < spotLightPositions.size(); i++){
-//            //spotlight
-//            transparentShader.setVec3("spotLight[" + std::to_string(i) + "].position", spotLightPositions[i]);
-//
-//            transparentShader.setVec3("spotLight[" + std::to_string(i) + "].direction", programState->camera.Front);
-////            transparentShader.setVec3("spotLight[" + std::to_string(i) + "].direction", programState->camera.Front);
-//            transparentShader.setVec3("spotLight[" + std::to_string(i) + "].ambient", programState->spotLight.ambient);
-//            transparentShader.setVec3("spotLight[" + std::to_string(i) + "].diffuse", programState->spotLight.diffuse);
-//            transparentShader.setVec3("spotLight[" + std::to_string(i) + "].specular", programState->spotLight.specular);
-//            transparentShader.setFloat("spotLight[" + std::to_string(i) + "].constant", programState->spotLight.constant);
-//            transparentShader.setFloat("spotLight[" + std::to_string(i) + "].linear", programState->spotLight.linear);
-//            transparentShader.setFloat("spotLight[" + std::to_string(i) + "].quadratic", programState->spotLight.quadratic);
-//            transparentShader.setFloat("spotLight[" + std::to_string(i) + "].cutOff", programState->spotLight.cutOff);
-//            transparentShader.setFloat("spotLight[" + std::to_string(i) + "].outerCutOff", programState->spotLight.outerCutOff);
-//
-//        }
+        transparentShader.setBool("blinn", programState->blinn);
+
+        transparentShader.setVec3("viewPos", programState->camera.Position);
+        transparentShader.setFloat("material.shininess", 32.0f);
+        //directional light
+        transparentShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
+        transparentShader.setVec3("dirLight.ambient", programState->dirLightAmbient);
+        transparentShader.setVec3("dirLight.diffuse", programState->dirLightDiffuse *5.0f);
+        transparentShader.setVec3("dirLight.specular", programState->dirLightSpecular);
+
         glDepthFunc(GL_LEQUAL);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glDisable(GL_BLEND);
-//        renderQuad();
 
-//        glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO1);//colorbuffer1
-//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//
-//        shaderBloomFinal.use();
-//        glActiveTexture(GL_TEXTURE0);
-//        glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
-//        glActiveTexture(GL_TEXTURE1);
-//        glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[!horizontal]);
-//        glActiveTexture(GL_TEXTURE2);
-//        glBindTexture(GL_TEXTURE_2D, gMask);
-////        glBindTexture(GL_TEXTURE_2D, colorBuffers[1]);
-//        shaderBloomFinal.setInt("bloom", programState->bloom);
-//        shaderBloomFinal.setFloat("exposure", programState->exposure);
-//        renderQuad();
-//
-//        std::cout << "bloom: " << (programState->bloom ? "on" : "off") << "|hdr: " << (programState->hdr ? "on" : "off") << "| exposure: " << programState->exposure<<::endl;
-//        glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
-//        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, hdrFBO1); // write to default framebuffer
-//        glBlitFramebuffer(
-//                0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
-//        );
-//        transparentShader.use();
-//
-//        glBindVertexArray(transparentVAO);
-//        glEnable(GL_BLEND);
-//        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-//        glActiveTexture(GL_TEXTURE0);
-//        glBindTexture(GL_TEXTURE_2D, transparentTexture);
-////
-//        model = glm::mat4(1.0f);
-//        model = glm::translate(model, glm::vec3(12,-17.5,-11));
-//        model = glm::scale(model, glm::vec3(5,5,5));
-//        transparentShader.setMat4("projection", projection);
-//        transparentShader.setMat4("view", view);
-//        float angle = 90.0f;
-//        model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.0f,0.0f ));
-//        transparentShader.setMat4("model", model);
-//
-//        glDepthFunc(GL_LEQUAL);
-//        glDrawArrays(GL_TRIANGLES, 0, 6);
-//
-//        glDisable(GL_BLEND);
-//
-//
-//        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-////        glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO1);
-////        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
-////        glBlitFramebuffer(
-////                0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
-////        );
-//
-//        shaderBloomFinal.use();
-//        glActiveTexture(GL_TEXTURE0);
-//        glBindTexture(GL_TEXTURE_2D, colorBuffers1);
-//        glActiveTexture(GL_TEXTURE1);
-//        glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[!horizontal]);
-//        glActiveTexture(GL_TEXTURE2);
-//        glBindTexture(GL_TEXTURE_2D, gMask);
-//
-//
-//        renderQuad();
 
         if (programState->ImGuiEnabled) {
             ImGui_ImplOpenGL3_NewFrame();
@@ -1083,8 +844,6 @@ int main() {
                 static float f = 0.0f;
                 ImGui::Begin("Hello window");
                 ImGui::SliderFloat("Exposure slider", &programState->exposure, 0.0, 5.0);
-                ImGui::DragFloat3("Backpack position", (float *) &programState->backpackPosition);
-                ImGui::DragFloat3("Plane position", (float *) &programState->planePos);
                 ImGui::DragFloat("pointLight.constant", &programState->pointLight.constant, 0.05, 0.0, 1.0);
                 ImGui::DragFloat("pointLight.linear", &programState->pointLight.linear, 0.05, 0.0, 1.0);
                 ImGui::DragFloat("pointLight.quadratic", &programState->pointLight.quadratic, 0.05, 0.0, 1.0);
@@ -1098,18 +857,6 @@ int main() {
                 ImGui::Text("(Yaw, Pitch): (%f, %f)", c.Yaw, c.Pitch);
                 ImGui::Text("Camera front: (%f, %f, %f)", c.Front.x, c.Front.y, c.Front.z);
                 ImGui::Checkbox("Camera mouse update", &programState->CameraMouseMovementUpdateEnabled);
-                ImGui::End();
-            }
-            {
-                ImGui::Begin("Buffers");
-                ImGui::GetWindowDrawList()->AddImage(
-                        (void*)pingpongDepthbuffers[1],
-                        ImVec2(ImGui::GetCursorScreenPos()),
-                        ImVec2(ImGui::GetCursorScreenPos().x + programState->SCR_WIDTH / 5,
-                               ImGui::GetCursorScreenPos().y + programState->SCR_HEIGHT / 5), ImVec2(0, 1),
-                        ImVec2(1, 0));
-
-
                 ImGui::End();
             }
 
@@ -1158,6 +905,15 @@ void processInput(GLFWwindow *window) {
         programState->bloom = true;
     if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
         programState->bloom = false;
+    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
+        programState->blinn = true;
+    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
+        programState->blinn = false;
+
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS && !freeCamKeyPressed) {
+        programState->camera.freeCam = !programState->camera.freeCam;
+        freeCamKeyPressed = true;
+    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -1193,46 +949,7 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     programState->camera.ProcessMouseScroll(yoffset);
 }
 
-void DrawImGui(ProgramState *programState,GLFWwindow *window) {
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
 
-
-    {
-        static float f = 0.0f;
-        ImGui::Begin("Hello window");
-        ImGui::Text("Hello text");
-        ImGui::SliderFloat("Float slider", &f, 0.0, 1.0);
-        ImGui::ColorEdit3("Background color", (float *) &programState->clearColor);
-        ImGui::DragFloat3("Backpack position", (float*)&programState->backpackPosition);
-        ImGui::DragFloat("Backpack scale", &programState->backpackScale, 0.05, 0.1, 4.0);
-
-        ImGui::DragFloat("pointLight.constant", &programState->pointLight.constant, 0.05, 0.0, 1.0);
-        ImGui::DragFloat("pointLight.linear", &programState->pointLight.linear, 0.05, 0.0, 1.0);
-        ImGui::DragFloat("pointLight.quadratic", &programState->pointLight.quadratic, 0.05, 0.0, 1.0);
-        ImGui::End();
-    }
-
-    {
-        ImGui::Begin("Camera info");
-        const Camera& c = programState->camera;
-        ImGui::Text("Camera position: (%f, %f, %f)", c.Position.x, c.Position.y, c.Position.z);
-        ImGui::Text("(Yaw, Pitch): (%f, %f)", c.Yaw, c.Pitch);
-        ImGui::Text("Camera front: (%f, %f, %f)", c.Front.x, c.Front.y, c.Front.z);
-        ImGui::Checkbox("Camera mouse update", &programState->CameraMouseMovementUpdateEnabled);
-        ImGui::GetWindowDrawList()->AddImage(
-                0,
-                ImVec2(ImGui::GetCursorScreenPos()),
-                ImVec2(ImGui::GetCursorScreenPos().x + programState->SCR_WIDTH/2,
-                       ImGui::GetCursorScreenPos().y + programState->SCR_HEIGHT/2), ImVec2(0, 1), ImVec2(1, 0));
-
-        ImGui::End();
-    }
-
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-}
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_F1 && action == GLFW_PRESS) {
@@ -1245,81 +962,6 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         }
     }
 }
-// renderCube() renders a 1x1 3D cube in NDC.
-// -------------------------------------------------
-unsigned int cubeVAO = 0;
-unsigned int cubeVBO = 0;
-void renderCube()
-{
-    // initialize (if necessary)
-    if (cubeVAO == 0)
-    {
-        float vertices[] = {
-                // back face
-                -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-                1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-                1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right
-                1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-                -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-                -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
-                // front face
-                -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-                1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
-                1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-                1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-                -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
-                -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-                // left face
-                -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-                -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
-                -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-                -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-                -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-                -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-                // right face
-                1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-                1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-                1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right
-                1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-                1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-                1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left
-                // bottom face
-                -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-                1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
-                1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-                1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-                -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-                -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-                // top face
-                -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-                1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-                1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right
-                1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-                -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-                -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left
-        };
-        glGenVertexArrays(1, &cubeVAO);
-        glGenBuffers(1, &cubeVBO);
-        // fill buffer
-        glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        // link vertex attributes
-        glBindVertexArray(cubeVAO);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
-    }
-    // render Cube
-    glBindVertexArray(cubeVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    glBindVertexArray(0);
-}
-
 
 // renderQuad() renders a 1x1 XY quad in NDC
 // -----------------------------------------

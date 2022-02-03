@@ -168,7 +168,7 @@ int main() {
 
     // glfw window creation
     // --------------------
-    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Neonska Galerija", NULL, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -899,18 +899,18 @@ void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
         programState->camera.ProcessKeyboard(RIGHT, deltaTime);
     }
-    if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS)
-        programState->hdr = true;
-    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS)
-        programState->hdr = false;
+//    if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS)
+//        programState->hdr = true;
+//    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS)
+//        programState->hdr = false;
     if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
         programState->bloom = true;
     if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
         programState->bloom = false;
-    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
-        programState->blinn = true;
-    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
-        programState->blinn = false;
+//    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
+//        programState->blinn = true;
+//    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
+//        programState->blinn = false;
 
     if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS && !freeCamKeyPressed) {
         programState->camera.freeCam = !programState->camera.freeCam;

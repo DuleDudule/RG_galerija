@@ -1,18 +1,18 @@
 
 # Neonska Galerija
 
-Projekat iz racunarske grafike.
+Projekat iz računarske grafike.
 
-Sve koriscene slike su skenirani originalni radovi.
+Sve korišćene slike su skenirani originalni radovi.
 
-Univerzitet u Beogradu Matematicki Fakultet 2022.
+Univerzitet u Beogradu Matematički Fakultet 2022.
 
 
 ## Uputstvo
-Ako prilikom kompilacije dodje do greske koja kaze da je prekoracen broj dozvoljenih registara potrebno je otvoriti resources/shaders/8.1.deferred_shading.fs i postepeno smanjivati broj smesten u promenljivu NR_LIGHTS_SIPKE dok ne prodje kompilacija.
+Ako prilikom kompilacije dođe do greške koja kaže da je prekoračen broj dozvoljenih registara potrebno je otvoriti resources/shaders/8.1.deferred_shading.fs i postepeno smanjivati broj smešten u promenljivu NR_LIGHTS_SIPKE dok ne prođe kompilacija.
 
 - Kretanje WASD
-- Otkljucavanje fiksirane kamere na F
+- Otključavanje fiksirane kamere na F
 - Bloom disable na V
 - Bloom enable na B
 - Izlazak iz programa na ESC
@@ -22,7 +22,7 @@ Ako prilikom kompilacije dodje do greske koja kaze da je prekoracen broj dozvolj
 
  - [Skelet projekta preuzet sa sajta predmeta](https://github.com/matf-racunarska-grafika/project_base)
  - [LearnOpenGL](https://learnopengl.com/)
- - [How to write a Good readme](https://bulldogjob.com/news/449-how-to-write-a-good-readme-for-your-github-project)
+ 
 
 
 ## Implementirane oblasti
@@ -47,5 +47,5 @@ Ako prilikom kompilacije dodje do greske koja kaze da je prekoracen broj dozvolj
 # Posebno hvala
 
 - Katarina Ognjenovic
-- Jovan Skoric
-- Marko Spasic
+- Jovan Škorić
+- Marko Spasić
